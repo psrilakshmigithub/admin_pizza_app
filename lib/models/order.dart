@@ -9,6 +9,7 @@ class Order {
   final String status;
   final DateTime? createdAt;
   final String? reason;
+  final bool isOrderConfirmed;
   final List<OrderItem> items;
 
   Order({
@@ -22,6 +23,7 @@ class Order {
     required this.status,
     this.createdAt,
     this.reason = '',
+    this.isOrderConfirmed = false,
     required this.items,
   });
 
@@ -36,6 +38,7 @@ class Order {
       paymentIntentId: json['paymentIntentId'],
       status: json['status'],
       reason: json['reason'],
+      isOrderConfirmed:json['isOrderConfirmed'],
       createdAt: json['createdAt'] != null ? DateTime.parse(json['createdAt']) : null,
       items: (json['items'] as List)
           .map((item) => OrderItem.fromJson(item))
@@ -54,6 +57,7 @@ class Order {
       'paymentIntentId': paymentIntentId,
       'status': status,
       'reason': reason,
+      'isOrderConfirmed': isOrderConfirmed,
       'createdAt': createdAt?.toIso8601String(),
       'items': items.map((item) => item.toJson()).toList(),
     };

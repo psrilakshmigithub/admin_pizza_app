@@ -17,6 +17,7 @@ dependencies:
   web_socket_channel: ^2.1.0
   overlay_support: ^2.1.0
   audioplayers: ^6.1.0
+  printing: ^5.6.0
 
 flutter:
   assets:
@@ -26,6 +27,8 @@ flutter:
       fonts:
         - asset: assets/fonts/NotoSans-Regular.ttf
         - asset: assets/fonts/NotoSans-Bold.ttf
+          weight: 700
+  uses-material-design: true
 
 dev_dependencies:
   flutter_test:
