@@ -13,18 +13,33 @@ class OrderListenerService {
   late BuildContext _context;
   int _reconnectAttempts = 0;
   Timer? _reconnectTimer;
-  bool _isConnected = false; // ✅ Track connection status
+  Timer? _watchdogTimer; // Timer to check for server inactivity
+  bool _isConnected = false; // Track connection status
 
+  // Tracks the last time a message was received.
+  DateTime? _lastMessageReceivedTime;
+
+  // Set the BuildContext so that we can show dialogs or snackbars.
   void setContext(BuildContext context) {
     _context = context;
   }
 
   void connect() {
-    if (_isConnected) return; // ✅ Prevent duplicate connections
+    if (_isConnected) return; // Prevent duplicate connections
     print('🟢 Connecting to WebSocket...');
 
-    _channel = WebSocketChannel.connect(Uri.parse('ws://10.0.0.218:5000'));
-    _isConnected = true;
+    try {
+      _channel = WebSocketChannel.connect(Uri.parse('ws://10.0.0.218:5000'));
+      _isConnected = true;
+    } catch (e) {
+      print('❌ Error establishing WebSocket connection: $e');
+      _handleReconnect();
+      return;
+    }
+
+    // Reset the last message time and start the watchdog timer.
+    _lastMessageReceivedTime = DateTime.now();
+    _startWatchdogTimer();
 
     // Identify this client as an admin
     _channel!.sink.add(jsonEncode({
@@ -36,11 +51,16 @@ class OrderListenerService {
     _channel!.stream.listen(
       (message) {
         print('🔔 New order received: $message');
+        // Update the timestamp on every message
+        _lastMessageReceivedTime = DateTime.now();
         _playAlarmLoop();
         _showOrderPopup(message);
-        _reconnectAttempts = 0; // ✅ Reset reconnection attempts
+        _reconnectAttempts = 0; // Reset reconnection attempts after a successful message
       },
-      onDone: _handleReconnect,
+      onDone: () {
+        print('ℹ️ WebSocket connection closed.');
+        _handleReconnect();
+      },
       onError: (error) {
         print('⚠️ WebSocket Error: $error');
         _handleReconnect();
@@ -48,32 +68,62 @@ class OrderListenerService {
     );
   }
 
+  // Starts (or restarts) a periodic watchdog timer.
+  void _startWatchdogTimer() {
+    _watchdogTimer?.cancel();
+    _watchdogTimer = Timer.periodic(const Duration(seconds: 60), (timer) {
+      if (_lastMessageReceivedTime != null) {
+        final difference = DateTime.now().difference(_lastMessageReceivedTime!);
+        if (difference.inSeconds > 60) {
+          print(
+              '🔄 No orders received for ${difference.inSeconds} seconds. Assuming server communication failure.');
+          _fetchMissedOrders();
+          // Reset the timer to avoid fetching repeatedly.
+          _lastMessageReceivedTime = DateTime.now();
+        }
+      }
+    });
+  }
+
   void _handleReconnect() {
     _isConnected = false;
-    if (_reconnectAttempts < 10) { // ✅ Increase reconnection attempts
+    // Cancel the watchdog timer while reconnecting.
+    _watchdogTimer?.cancel();
+
+    // Notify the admin that the connection was lost.
+    if (_context.mounted) {
+      ScaffoldMessenger.of(_context).showSnackBar(
+        const SnackBar(content: Text('Connection lost. Attempting to reconnect...')),
+      );
+    }
+
+    if (_reconnectAttempts < 10) {
       _reconnectAttempts++;
+      // Exponential backoff delay: for example, 2, 4, 6, … seconds.
       final delay = Duration(seconds: _reconnectAttempts * 2);
-      print('♻️ Reconnecting in ${delay.inSeconds} seconds...');
+      print('♻️ Reconnecting in ${delay.inSeconds} seconds (Attempt $_reconnectAttempts)...');
       _reconnectTimer = Timer(delay, connect);
     } else {
       print('🚨 Max reconnect attempts reached. Fetching missed orders...');
       _fetchMissedOrders();
-      _reconnectAttempts = 0; // ✅ Reset and try connecting again
-      Timer(const Duration(seconds: 10), connect);
+      _reconnectAttempts = 0; // Reset attempts for future reconnection cycles
+      // Try reconnecting after a fixed delay even after fetching missed orders.
+      _reconnectTimer = Timer(const Duration(seconds: 10), connect);
     }
   }
 
   Future<void> _fetchMissedOrders() async {
     try {
-      print('🔄 Fetching missed orders...');
+      print('🔄 Fetching missed orders from the server...');
       final response = await http.get(Uri.parse('http://10.0.0.218:5000/api/orders/missed'));
       if (response.statusCode == 200) {
+         print('🔄 Fetching missed orders from the server... ${jsonDecode(response.body)}');
         final List<dynamic> missedOrders = jsonDecode(response.body);
         for (var order in missedOrders) {
           _showOrderPopup(jsonEncode(order));
         }
       } else {
-        print('⚠️ Failed to fetch missed orders.');
+        print('⚠️ Failed to fetch missed orders. Status code: ${response.statusCode}');
       }
     } catch (e) {
       print('❌ Error fetching missed orders: $e');
@@ -84,14 +134,15 @@ class OrderListenerService {
     try {
       await _audioPlayer.setReleaseMode(ReleaseMode.loop);
       await _audioPlayer.setVolume(1.0);
-      await _audioPlayer.play(AssetSource('alarm.mp3')); // Ensure correct asset path
+      // Ensure the asset path is correct and that the user has interacted with the app before playing sound.
+      await _audioPlayer.play(AssetSource('alarm.mp3'));
     } catch (e) {
       print('❌ Error playing alarm sound: $e');
     }
   }
 
   void _showOrderPopup(String message) {
-    if (!_context.mounted) return; // ✅ Prevent showing the dialog if context is invalid  
+    if (!_context.mounted) return; // Prevent showing the dialog if context is invalid
 
     showDialog(
       context: _context,
@@ -108,7 +159,8 @@ class OrderListenerService {
                 Navigator.of(context, rootNavigator: true).pop();
                 Navigator.of(context).push(
                   MaterialPageRoute(
-                    builder: (context) => OrderDetailsScreen(order: jsonDecode(message)),
+                    builder: (context) =>
+                        OrderDetailsScreen(order: jsonDecode(message)),
                   ),
                 );
               },
@@ -125,6 +177,7 @@ class OrderListenerService {
 
   void disconnect() {
     _reconnectTimer?.cancel();
+    _watchdogTimer?.cancel();
     _channel?.sink.close(status.goingAway);
     _isConnected = false;
   }

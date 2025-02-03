@@ -5,11 +5,13 @@ class Order {
   final String? scheduleTime;
   final String? instructions;
   final double totalPrice;
+  final double tip;
   final String? paymentIntentId;
   final String status;
   final DateTime? createdAt;
   final String? reason;
   final bool isOrderConfirmed;
+  final String paymentStatus;
   final List<OrderItem> items;
 
   Order({
@@ -19,11 +21,13 @@ class Order {
     this.scheduleTime,
     this.instructions,
     required this.totalPrice,
+    this.tip = 0.0,
     this.paymentIntentId,
     required this.status,
     this.createdAt,
     this.reason = '',
     this.isOrderConfirmed = false,
+    this.paymentStatus = 'not paid',
     required this.items,
   });
 
@@ -35,10 +39,12 @@ class Order {
       scheduleTime: json['scheduleTime'],
       instructions: json['instructions'],
       totalPrice: json['totalPrice'].toDouble(),
+      tip: json['tip'] != null ? json['tip'].toDouble() : 0.0,
       paymentIntentId: json['paymentIntentId'],
       status: json['status'],
       reason: json['reason'],
       isOrderConfirmed:json['isOrderConfirmed'],
+      paymentStatus: json['paymentStatus'],
       createdAt: json['createdAt'] != null ? DateTime.parse(json['createdAt']) : null,
       items: (json['items'] as List)
           .map((item) => OrderItem.fromJson(item))
@@ -54,10 +60,12 @@ class Order {
       'scheduleTime': scheduleTime,
       'instructions': instructions,
       'totalPrice': totalPrice,
+      'tip': tip,
       'paymentIntentId': paymentIntentId,
       'status': status,
       'reason': reason,
       'isOrderConfirmed': isOrderConfirmed,
+      'paymentStatus': paymentStatus,
       'createdAt': createdAt?.toIso8601String(),
       'items': items.map((item) => item.toJson()).toList(),
     };
@@ -72,6 +80,8 @@ class OrderItem {
   final List<Drink>? drinks;
   final dynamic toppings; // Array or Mixed type
   final int quantity;
+  final double priceByQuantity;
+  final double tip;
   final double totalPrice;
 
   OrderItem({
@@ -82,7 +92,9 @@ class OrderItem {
     this.drinks,
     this.toppings,
     required this.quantity,
+    required this.priceByQuantity,
     required this.totalPrice,
+    this.tip = 0.0,
   });
 
   factory OrderItem.fromJson(Map<String, dynamic> json) {
@@ -96,7 +108,9 @@ class OrderItem {
           : null,
       toppings: json['toppings'],
       quantity: json['quantity'],
+      priceByQuantity: json['priceByQuantity'].toDouble(),
       totalPrice: json['totalPrice'].toDouble(),
+      tip: json['tip'] != null ? json['tip'].toDouble() : 0.0,
     );
   }
 
@@ -109,7 +123,9 @@ class OrderItem {
       'drinks': drinks?.map((drink) => drink.toJson()).toList(),
       'toppings': toppings,
       'quantity': quantity,
+      'priceByQuantity': priceByQuantity,
       'totalPrice': totalPrice,
+      'tip': tip,
     };
   }
 }
