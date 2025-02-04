@@ -21,10 +21,11 @@ class _LiveOrdersScreenState extends State<LiveOrdersScreen> {
     _fetchOrders();
   }
 
- /// ✅ Refreshes the orders list manually
+  /// Refreshes the orders list manually
   Future<void> refresh() async {
     await _fetchOrders();
   }
+
   Future<void> _fetchOrders() async {
     setState(() => _isLoading = true);
     final response = await http.get(Uri.parse('http://10.0.0.218:5000/api/orders'));
@@ -33,6 +34,8 @@ class _LiveOrdersScreenState extends State<LiveOrdersScreen> {
       setState(() {
         _orders = List<Map<String, dynamic>>.from(jsonDecode(response.body));
         _isLoading = false;
+        // Sort orders by date and time (assuming 'createdAt' is available)
+        _orders.sort((a, b) => DateTime.parse(b['createdAt']).compareTo(DateTime.parse(a['createdAt'])));
       });
     } else {
       setState(() {
@@ -62,7 +65,7 @@ class _LiveOrdersScreenState extends State<LiveOrdersScreen> {
     );
 
     if (updated == true) {
-      refresh(); // ✅ Refresh the list if order was updated
+      refresh(); // Refresh the list if order was updated
     }
   }
 
@@ -82,19 +85,66 @@ class _LiveOrdersScreenState extends State<LiveOrdersScreen> {
                       final order = _orders[index];
 
                       return Card(
-                        elevation: 2,
+                        elevation: 4,
                         margin: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(10),
+                        ),
                         child: ListTile(
-                          title: Text('Order ID: ${order['_id'] ?? 'N/A'}'),
+                          contentPadding: EdgeInsets.symmetric(vertical: 10, horizontal: 15),
+                          title: Row(
+                            children: [
+                              Expanded(
+                                flex: 2,
+                                child: Text(
+                                  'Order #${order['_id'].toString().substring(0, 6)}',
+                                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                                ),
+                              ),
+                              Expanded(
+                                flex: 2,
+                                child: Text(
+                                  'Customer: ${order['user']['name'] ?? 'Unknown'}',
+                                  style: TextStyle(fontSize: 14),
+                                ),
+                              ),
+                              Expanded(
+                                flex: 1,
+                                child: Container(
+                                  padding: EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                                  decoration: BoxDecoration(
+                                    color: order['paymentStatus'] == 'paid' ?  Colors.green : Colors.orange,
+                                    borderRadius: BorderRadius.circular(5),
+                                  ),
+                                  child: Text(
+                                    order['paymentStatus'] ?? 'Unknown',
+                                    style: TextStyle(color: Colors.white),
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
                           subtitle: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              Text('Total Price: \$${order['totalPrice'] ?? '0.00'}'),
-                              Text('Status: ${order['status'] ?? 'Unknown'}'),
-                              Text('Delivery Type: ${order['deliveryType'] ?? 'N/A'}'),
+                              Row(
+                                children: [
+                                  order['deliveryType'] == 'delivery'
+                                      ? Icon(Icons.delivery_dining, color: Colors.blue)
+                                      : Icon(Icons.store_mall_directory, color: Colors.orange),
+                                  SizedBox(width: 10),
+                                  Text('Total: \$${order['totalPrice'].toStringAsFixed(2)}'),
+                                ],
+                              ),
+                              Text('Order Time: ${order['createdAt']}'),
+                              Text('Delivery Type: ${order['deliveryType']}'),
                             ],
                           ),
-                          trailing: const Icon(Icons.arrow_forward_ios),
+                          trailing: Icon(
+                            Icons.arrow_forward_ios,
+                            size: 18,
+                            color: Colors.grey,
+                          ),
                           onTap: () => _navigateToOrderDetails(order),
                         ),
                       );

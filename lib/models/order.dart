@@ -13,6 +13,8 @@ class Order {
   final bool isOrderConfirmed;
   final String paymentStatus;
   final List<OrderItem> items;
+  final double deliveryFee;
+  final User user; // Added user field
 
   Order({
     this.id,
@@ -29,6 +31,8 @@ class Order {
     this.isOrderConfirmed = false,
     this.paymentStatus = 'not paid',
     required this.items,
+    this.deliveryFee = 0.0,
+    required this.user, // Added user field
   });
 
   factory Order.fromJson(Map<String, dynamic> json) {
@@ -43,12 +47,12 @@ class Order {
       paymentIntentId: json['paymentIntentId'],
       status: json['status'],
       reason: json['reason'],
-      isOrderConfirmed:json['isOrderConfirmed'],
+      isOrderConfirmed: json['isOrderConfirmed'],
       paymentStatus: json['paymentStatus'],
       createdAt: json['createdAt'] != null ? DateTime.parse(json['createdAt']) : null,
-      items: (json['items'] as List)
-          .map((item) => OrderItem.fromJson(item))
-          .toList(),
+      items: (json['items'] as List).map((item) => OrderItem.fromJson(item)).toList(),
+      deliveryFee: json['deliveryFee'] != null ? json['deliveryFee'].toDouble() : 0.0,
+      user: User.fromJson(json['user']), // Parse nested User object
     );
   }
 
@@ -68,6 +72,8 @@ class Order {
       'paymentStatus': paymentStatus,
       'createdAt': createdAt?.toIso8601String(),
       'items': items.map((item) => item.toJson()).toList(),
+      'deliveryFee': deliveryFee,
+      'user': user.toJson(), // Convert User to JSON
     };
   }
 }
@@ -233,3 +239,36 @@ class Drink {
     };
   }
 }
+
+class User {
+  final String name;
+  final String email;
+  final String? phone;
+  final String? address;
+
+  User({
+    required this.name,
+    required this.email,
+    this.phone,
+    this.address,
+  });
+
+  factory User.fromJson(Map<String, dynamic> json) {
+    return User(
+      name: json['name'],
+      email: json['email'],
+      phone: json['phone'],
+      address: json['address'],
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'name': name,
+      'email': email,
+      'phone': phone,
+      'address': address,
+    };
+  }
+}
+
