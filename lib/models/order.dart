@@ -32,6 +32,7 @@ class Order {
     this.paymentStatus = 'not paid',
     required this.items,
     this.deliveryFee = 0.0,
+    
     required this.user, // Added user field
   });
 
@@ -88,6 +89,7 @@ class OrderItem {
   final int quantity;
   final double priceByQuantity;
   final double tip;
+  final String? description;
   final double totalPrice;
 
   OrderItem({
@@ -100,6 +102,7 @@ class OrderItem {
     required this.quantity,
     required this.priceByQuantity,
     required this.totalPrice,
+    this.description,
     this.tip = 0.0,
   });
 
@@ -115,6 +118,7 @@ class OrderItem {
       toppings: json['toppings'],
       quantity: json['quantity'],
       priceByQuantity: json['priceByQuantity'].toDouble(),
+      description: json['description'],
       totalPrice: json['totalPrice'].toDouble(),
       tip: json['tip'] != null ? json['tip'].toDouble() : 0.0,
     );
@@ -131,7 +135,9 @@ class OrderItem {
       'quantity': quantity,
       'priceByQuantity': priceByQuantity,
       'totalPrice': totalPrice,
+      'description': description,
       'tip': tip,
+
     };
   }
 }
@@ -143,6 +149,7 @@ class Product {
   final double price;
   final String image;
   final ProductDetails details;
+  final String? description;
 
   Product({
     required this.id,
@@ -151,6 +158,7 @@ class Product {
     required this.price,
     required this.image,
     required this.details,
+    required this.description,
   });
 
   factory Product.fromJson(Map<String, dynamic> json) {
@@ -161,6 +169,8 @@ class Product {
       price: json['price'].toDouble(),
       image: json['image'],
       details: ProductDetails.fromJson(json['details']),
+      description: json['description'],
+
     );
   }
 
@@ -172,6 +182,7 @@ class Product {
       'price': price,
       'image': image,
       'details': details.toJson(),
+      'description': description,
     };
   }
 }
@@ -182,6 +193,7 @@ class ProductDetails {
   final List<String>? sides;
   final List<String>? drinks;
   final List<String>? flavors;
+  final List<String>? sizeDescriptions;
 
   ProductDetails({
     this.wingsFlavors,
@@ -189,6 +201,7 @@ class ProductDetails {
     this.sides,
     this.drinks,
     this.flavors,
+    this.sizeDescriptions,
   });
 
   factory ProductDetails.fromJson(Map<String, dynamic> json) {
@@ -198,6 +211,7 @@ class ProductDetails {
       sides: json['sides'] != null ? List<String>.from(json['sides']) : null,
       drinks: json['drinks'] != null ? List<String>.from(json['drinks']) : null,
       flavors: json['Flavors'] != null ? List<String>.from(json['Flavors']) : null,
+      sizeDescriptions: json['sizeDescriptions'] != null ? List<String>.from(json['sizeDescriptions']) : null,
     );
   }
 
@@ -208,6 +222,7 @@ class ProductDetails {
       'sides': sides,
       'drinks': drinks,
       'Flavors': flavors,
+      'sizeDescriptions': sizeDescriptions,
     };
   }
 }

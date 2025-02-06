@@ -1,14 +1,18 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import 'package:admin_pizza_app/services/order_provider.dart'; 
 import 'package:http/http.dart' as http;
-import 'package:flutter/scheduler.dart';
 import 'live_orders_screen.dart';
 
 class OrderDetailsScreen extends StatefulWidget {
   final Map<String, dynamic> order;
 
-  const OrderDetailsScreen({Key? key, required this.order}) : super(key: key);
 
+ final VoidCallback onOrderUpdated; // Receive callback function
+
+  const OrderDetailsScreen({Key? key, required this.order, required this.onOrderUpdated})
+      : super(key: key);
   @override
   _OrderDetailsScreenState createState() => _OrderDetailsScreenState();
 }
@@ -24,10 +28,32 @@ class _OrderDetailsScreenState extends State<OrderDetailsScreen> {
     final user = widget.order['user'] ?? {};
     final paymentStatus = widget.order['paymentStatus'] ?? 'Unknown';
 
-    return Scaffold(
+    return Scaffold(      
       appBar: AppBar(
         title: const Text('Order Details'),
         centerTitle: true,
+        actions: [
+          ElevatedButton.icon(
+            onPressed: _showAcceptOrderDialog,
+            icon: const Icon(Icons.check_circle, color: Colors.white),
+            label: const Text('Accept'),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.green,
+              foregroundColor: Colors.white,
+            ),
+          ),
+          const SizedBox(width: 10),
+          ElevatedButton.icon(
+            onPressed: _showDeclineOrderDialog,
+            icon: const Icon(Icons.cancel, color: Colors.white),
+            label: const Text('Decline'),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.red,
+              foregroundColor: Colors.white,
+            ),
+          ),
+          const SizedBox(width: 10),
+        ],
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(16.0),
@@ -51,7 +77,7 @@ class _OrderDetailsScreenState extends State<OrderDetailsScreen> {
                     const SizedBox(height: 10),
                     _buildInfoRow(Icons.phone, 'Phone:', user['phone'] ?? 'N/A'),
                     const SizedBox(height: 10),
-                    _buildInfoRow(Icons.location_on, 'Delivery Address:',  user['address'] ?? 'N/A'),
+                    _buildInfoRow(Icons.location_on, 'Delivery Address:', user['address'] ?? 'N/A'),
                   ],
                 ),
               ),
@@ -110,17 +136,15 @@ class _OrderDetailsScreenState extends State<OrderDetailsScreen> {
                       if (item['size'] != null) _buildItemDetail('Size:', item['size']),
                       if (item['wingsFlavor'] != null && (item['wingsFlavor'] as String).isNotEmpty)
                         _buildItemDetail('Wings Flavor:', item['wingsFlavor']),
-                        if (item['drinks'] != null && (item['drinks'] as List).isNotEmpty)
-                          _buildItemDetail(
-                            'Drinks:',
-                            (item['drinks'] as List)
-                                .map((drink) => drink['name'])
-                                .join(', '),
-                          ),
+                      if (item['drinks'] != null && (item['drinks'] as List).isNotEmpty)
+                        _buildItemDetail(
+                          'Drinks:',
+                          (item['drinks'] as List).map((drink) => drink['name']).join(', '),
+                        ),
                       if (item['sides'] != null && (item['sides'] as List).isNotEmpty)
                         _buildItemDetail('Sides:', (item['sides'] as List).join(', ')),
                       if (item['toppings'] != null && (item['toppings'] as List).isNotEmpty)
-                        _buildToppingsList('Toppings:', item['toppings']),
+                        _buildItemDetail('Toppings:', (item['toppings'] as List).join(', ')),
                       _buildItemDetail('Quantity:', item['quantity']?.toString() ?? 'N/A'),
                       _buildItemDetail('Total Price:', '\$${item['totalPrice'] ?? 'N/A'}'),
                     ],
@@ -128,30 +152,6 @@ class _OrderDetailsScreenState extends State<OrderDetailsScreen> {
                 ),
               );
             }).toList(),
-            const SizedBox(height: 20),
-
-            /// **Action Buttons**
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-              children: [
-                ElevatedButton.icon(
-                  onPressed: _showAcceptOrderDialog,
-                  icon: const Icon(Icons.check_circle, size: 20),
-                  label: const Text('Accept Order'),
-                  style: ElevatedButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-                  ),
-                ),
-                ElevatedButton.icon(
-                  onPressed: _showDeclineOrderDialog,
-                  icon: const Icon(Icons.cancel, size: 20),
-                  label: const Text('Decline Order'),
-                  style: ElevatedButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-                  ),
-                ),
-              ],
-            ),
           ],
         ),
       ),
@@ -278,37 +278,33 @@ class _OrderDetailsScreenState extends State<OrderDetailsScreen> {
     );
   }
 
-  /// Confirm Accept Order
-  void _confirmAcceptOrder(int preparationTime) async {
-    setState(() => _isProcessing = true);
-    Navigator.of(context).pop();
+void _confirmAcceptOrder(int preparationTime) async {
+  final orderProvider = Provider.of<OrderProvider>(context, listen: false);
+  setState(() => _isProcessing = true);
+  Navigator.of(context).pop();
 
-    try {
-      final response = await http.post(
-        Uri.parse('http://10.0.0.218:5000/api/orders/accept'),
-        headers: {'Content-Type': 'application/json'},
-        body: jsonEncode({
-          'orderId': widget.order['_id'],
-          'preparationTime': preparationTime,
-        }),
-      );
+  try {
+    final response = await http.post(
+      Uri.parse('http://10.0.0.218:5000/api/orders/accept'),
+      headers: {'Content-Type': 'application/json'},
+      body: jsonEncode({
+        'orderId': widget.order['_id'],
+        'preparationTime': preparationTime,
+      }),
+    );
 
-      final message =
-          response.statusCode == 200 ? 'Order accepted successfully' : 'Failed to accept order';
-      _showSnackbar(message);
-
-      if (response.statusCode == 200) {
-        SchedulerBinding.instance.addPostFrameCallback((_) {
-          if (!mounted) return;
-          Navigator.of(context).pop(true);
-        });
-      }
-    } catch (e) {
-      _showSnackbar('Error: $e');
-    } finally {
-      setState(() => _isProcessing = false);
+    if (response.statusCode == 200) {
+      await orderProvider.fetchOrders(); // Refresh the orders list
+      Navigator.of(context).pop(true);
+    } else {
+      _showSnackbar('Failed to accept order: ${response.body}');
     }
+  } catch (e) {
+    _showSnackbar('Error: $e');
+  } finally {
+    setState(() => _isProcessing = false);
   }
+}
 
   /// Decline Order Dialog
   void _showDeclineOrderDialog() {
@@ -361,33 +357,33 @@ class _OrderDetailsScreenState extends State<OrderDetailsScreen> {
   }
 
   /// Confirm Decline Order
-  void _confirmDeclineOrder(String reason) async {
-    setState(() => _isProcessing = true);
-    Navigator.of(context).pop();
+void _confirmDeclineOrder(String reason) async {
+   final orderProvider = Provider.of<OrderProvider>(context, listen: false);
+  setState(() => _isProcessing = true);
+  Navigator.of(context).pop(); // Close Dialog
 
-    try {
-      final response = await http.post(
-        Uri.parse('http://10.0.0.218:5000/api/orders/decline'),
-        headers: {'Content-Type': 'application/json'},
-        body: jsonEncode({'orderId': widget.order['_id'], 'reason': reason}),
-      );
+  try {
+    final response = await http.post(
+      Uri.parse('http://10.0.0.218:5000/api/orders/decline'),
+      headers: {'Content-Type': 'application/json'},
+      body: jsonEncode({'orderId': widget.order['_id'], 'reason': reason}),
+    );
 
-      final message =
-          response.statusCode == 200 ? 'Order declined' : 'Failed to decline order';
-      _showSnackbar(message);
+    final message = response.statusCode == 200 ? 'Order declined' : 'Failed to decline order';
+    _showSnackbar(message);
 
-      if (response.statusCode == 200) {
-        SchedulerBinding.instance.addPostFrameCallback((_) {
-          if (!mounted) return;
-          Navigator.of(context).popUntil((route) => route.isFirst);
-        });
-      }
-    } catch (e) {
-      _showSnackbar('Error: $e');
-    } finally {
-      setState(() => _isProcessing = false);
+    if (response.statusCode == 200) {
+      await orderProvider.fetchOrders(); // Refresh the orders list
+      Navigator.of(context).pop(true);
+    } else {
+      _showSnackbar('Failed to accept order: ${response.body}');
     }
+  } catch (e) {
+    _showSnackbar('Error: $e');
+  } finally {
+    setState(() => _isProcessing = false);
   }
+}
 
   void _showSnackbar(String message) {
     ScaffoldMessenger.of(context).showSnackBar(

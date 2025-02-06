@@ -96,9 +96,8 @@ class ViewOrderScreen extends StatelessWidget {
                     if (order['deliveryType'] != null)
                       _buildInfoRow(Icons.delivery_dining, 'Delivery Type:', order['deliveryType']),
                     if (order['scheduleTime'] != null)
-                      _buildInfoRow(Icons.schedule, 'Schedule Time:', order['scheduleTime']),
-                    if (order['instructions'] != null)
-                      _buildInfoRow(Icons.note, 'Instructions:', order['instructions']),
+                      _buildInfoRow(Icons.schedule, 'Schedule Time:', order['scheduleTime']),               
+                    
                   ],
                 ),
               ),
@@ -141,6 +140,10 @@ class ViewOrderScreen extends StatelessWidget {
                           ),
                       if (item['toppings'] != null && item['toppings'].isNotEmpty)
                         _buildToppingsList('Toppings:', item['toppings']),
+                      if (item['description'] != null && (item['description'] as String).isNotEmpty)
+                        _buildItemDetail('Description:', item['description']),
+                      if (order['instructions'] != null)
+                      _buildItemDetail('Instructions:', order['instructions']),
                       _buildItemDetail('Quantity:', item['quantity'].toString()),
                       _buildItemDetail('Total Price:', '\$${item['totalPrice']}'),
                     ],

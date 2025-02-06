@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import 'package:admin_pizza_app/services/order_provider.dart'; 
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:admin_pizza_app/screens/live_orders_screen.dart';
 import 'package:admin_pizza_app/screens/menu_management_screen.dart';
@@ -9,7 +11,15 @@ import 'dart:convert';
 final OrderListenerService _listenerService = OrderListenerService();
 
 void main() {
-  runApp(const RootApp());
+  runApp(
+    MultiProvider(
+      providers: [
+        ChangeNotifierProvider(create: (_) => OrderProvider()), // ✅ Added Provider here
+      ],
+      child: const RootApp(),
+    ),
+    
+  ); 
 }
 
 class RootApp extends StatelessWidget {
@@ -94,7 +104,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(newStatus ? "✅ Store Opened" : "❌ Store Closed"),
-            duration: Duration(seconds: 2),
+            duration: const Duration(seconds: 2),
           ),
         );
       } else {
@@ -144,7 +154,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
             const Divider(),
             // Store Open/Close Toggle
             SwitchListTile(
-              title: Text(
+              title: const Text(
                 "Store Status",
                 style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
               ),

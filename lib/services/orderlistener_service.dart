@@ -11,9 +11,12 @@ class OrderListenerService {
   WebSocketChannel? _channel;
   final AudioPlayer _audioPlayer = AudioPlayer();
   late BuildContext _context;
+  VoidCallback? onOrderUpdated; 
   int _reconnectAttempts = 0;
+  
   Timer? _reconnectTimer;
   Timer? _watchdogTimer; // Timer to check for server inactivity
+  Timer? _missedOrdersCheckTimer; // Timer to periodically check for missed orders
   bool _isConnected = false; // Track connection status
 
   // Tracks the last time a message was received.
@@ -29,7 +32,9 @@ class OrderListenerService {
     print('🟢 Connecting to WebSocket...');
 
     try {
-      _channel = WebSocketChannel.connect(Uri.parse('ws://10.0.0.218:5000'));
+      
+      _channel = WebSocketChannel.connect(Uri.parse('wss://16b9-64-229-43-36.ngrok-free.app'));
+      
       _isConnected = true;
     } catch (e) {
       print('❌ Error establishing WebSocket connection: $e');
@@ -40,6 +45,9 @@ class OrderListenerService {
     // Reset the last message time and start the watchdog timer.
     _lastMessageReceivedTime = DateTime.now();
     _startWatchdogTimer();
+
+    // Start the periodic missed orders check timer.
+    _startMissedOrdersCheckTimer();
 
     // Identify this client as an admin
     _channel!.sink.add(jsonEncode({
@@ -82,6 +90,16 @@ class OrderListenerService {
           _lastMessageReceivedTime = DateTime.now();
         }
       }
+    });
+  }
+
+  // Starts a periodic timer to check for missed orders.
+  void _startMissedOrdersCheckTimer() {
+    _missedOrdersCheckTimer?.cancel();
+    // Check for missed orders every 5 minutes (adjust as needed).
+    _missedOrdersCheckTimer = Timer.periodic(const Duration(minutes: 5), (timer) {
+      print('🔄 Periodically checking for missed orders...');
+      _fetchMissedOrders();
     });
   }
 
@@ -160,7 +178,7 @@ class OrderListenerService {
                 Navigator.of(context).push(
                   MaterialPageRoute(
                     builder: (context) =>
-                        OrderDetailsScreen(order: jsonDecode(message)),
+                        OrderDetailsScreen(order: jsonDecode(message),onOrderUpdated: onOrderUpdated ?? () {},),
                   ),
                 );
               },
@@ -178,6 +196,7 @@ class OrderListenerService {
   void disconnect() {
     _reconnectTimer?.cancel();
     _watchdogTimer?.cancel();
+    _missedOrdersCheckTimer?.cancel();
     _channel?.sink.close(status.goingAway);
     _isConnected = false;
   }
