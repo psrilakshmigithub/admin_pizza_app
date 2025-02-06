@@ -145,6 +145,9 @@ class _OrderDetailsScreenState extends State<OrderDetailsScreen> {
                         _buildItemDetail('Sides:', (item['sides'] as List).join(', ')),
                       if (item['toppings'] != null && (item['toppings'] as List).isNotEmpty)
                         _buildItemDetail('Toppings:', (item['toppings'] as List).join(', ')),
+                         if (item['description'] != null && (item['description'] as String).isNotEmpty)
+                        _buildItemDetail('Description:', item['description']),
+                  
                       _buildItemDetail('Quantity:', item['quantity']?.toString() ?? 'N/A'),
                       _buildItemDetail('Total Price:', '\$${item['totalPrice'] ?? 'N/A'}'),
                     ],
